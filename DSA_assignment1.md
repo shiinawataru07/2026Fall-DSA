@@ -52,7 +52,7 @@ print(Fraction(a, b) + Fraction(c, d))
 
 
 代码运行截图 <mark>（至少包含有"Accepted"）</mark>
-
+![img](https://github.com/shiinawataru07/2026Fall-DSA/blob/master/imgs/E27653.png?raw=true)
 
 
 
@@ -81,6 +81,7 @@ class Solution:
 
 
 代码运行截图 <mark>（至少包含有"Accepted"）</mark>
+![img](https://github.com/shiinawataru07/2026Fall-DSA/blob/master/imgs/E190.png?raw=true)
 
 
 
@@ -114,6 +115,7 @@ class Solution:
 
 
 代码运行截图 <mark>（至少包含有"Accepted"）</mark>
+![img](https://github.com/shiinawataru07/2026Fall-DSA/blob/master/imgs/E1356.png?raw=true)
 
 
 
@@ -155,7 +157,7 @@ for modelName in sorted(d.keys()):
 
 
 代码运行截图 <mark>（至少包含有"Accepted"）</mark>
-
+![img](https://github.com/shiinawataru07/2026Fall-DSA/blob/master/imgs/M27300.png?raw=true)
 
 
 
@@ -204,6 +206,7 @@ class Solution:
 
 
 代码运行截图 <mark>（至少包含有"Accepted"）</mark>
+![img](https://github.com/shiinawataru07/2026Fall-DSA/blob/master/imgs/M1536.png?raw=true)
 
 
 
@@ -283,6 +286,7 @@ for _ in range(needNum):
 
 
 代码运行截图 <mark>（至少包含有"Accepted"）</mark>
+![img](https://github.com/shiinawataru07/2026Fall-DSA/blob/master/imgs/M05593.png?raw=true)
 
 
 
