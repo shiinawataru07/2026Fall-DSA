@@ -14,6 +14,29 @@
 
 要求所有操作的时间复杂度均为 $O(1)$。可以在原栈中额外压入辅助整数；无需考虑栈空或栈满。请给出各操作的伪代码，并简要说明辅助信息的含义。
 
+伪代码：
+```txt
+push(x):
+   if S.empty():
+      S.push(x)
+      S.push(x)
+   else:
+      maxVal = S.top()
+      S.push(x)
+      S.push(max(x, maxVal))
+pop():
+   S.pop()
+   return S.pop()
+top():
+   maxVal = S.pop()
+   actualVal = S.top()
+   S.push(maxVal)
+   return actualVal
+getMax():
+   return S.top()
+```
+思路讲解：在每个元素入栈时，同时将 stack 当前的最大值也压入栈中，这样在出栈时可以同时弹出当前元素和对应的最大值，从而保证 `getMax()` 操作可以在 $O(1)$ 时间内完成。
+
 ---
 
 ### 2
@@ -22,6 +45,34 @@
 
 请回答长度为 $2n$ 的合法括号序列共有多少种，并写出递推关系、初始条件以及通项公式。另列出 $n = 3$ 时的全部合法序列。
 
+```cpp
+#include<iostream>
+#include<vector>
+using namespace std;
+
+int main(){
+    int n; cin >> n;
+    vector<vector<int>> dp(n+1, vector<int>(n+1, 0));
+    dp[0][0] = 1;
+    for(int i = 0; i <= n; i++){
+        for(int j = 0; j <= i; j++){
+            if(i > 0) dp[i][j] += dp[i-1][j];
+            if(j > 0) dp[i][j] += dp[i][j-1];
+        }
+    }
+    cout << dp[n][n] << endl;
+    return 0;
+}
+```
+其中 dp[i][j] 表示使用 i 个左括号和 j 个右括号组成的合法序列数。
+
+```txt
+((()))
+(()())
+(())()
+()(())
+()()()
+```
 ---
 
 ### 3
@@ -41,6 +92,30 @@
    visit(A), visit(B), back(), visit(C), back(), forward(), back()
    ```
    写出最后的 `current`，以及两个栈中从栈底到栈顶保存的页面。
+
+```cpp
+stack<T> Back, Forward;
+void visit(T p) {
+   Back.push(current);
+   current = p;
+   while(!Forward.empty()) Forward.pop();
+}
+void back() {
+   if(!Back.empty()) {
+      Forward.push(current);
+      current = Back.top();
+      Back.pop();
+   }
+}
+void forward() {
+   if(!Forward.empty()) {
+      Back.push(current);
+      current = Forward.top();
+      Forward.pop();
+   }
+}
+```
+最后的 current = A，Back 栈中从栈底到栈顶为 Home，Forward 栈中从栈底到栈顶为 C。
 
 ---
 
@@ -67,3 +142,27 @@
    enQueue(5), enQueue(8), deQueue(), enQueue(2), enQueue(7), deQueue(), deQueue()
    ```
    请写出每次 `deQueue()` 的返回结果，并给出操作结束后队列中从队首到队尾的元素。
+
+```cpp
+stack<int> S1, S2;
+void enQueue(int x) {
+   S1.push(x);
+}
+int deQueue() {
+   if(S2.empty()) {
+      while(!S1.empty()) {
+         S2.push(S1.top());
+         S1.pop();
+      }
+   }
+   return S2.pop();
+}
+bool isEmpty() {
+   return S1.empty() && S2.empty();
+}
+```
+S1 和 S2 二者整体保存队列的元素，S1 用于入队，S2 用于出队。具体来讲就是，每次要出队是，要出的元素在 S1 的栈底，所以需要将 S1 的元素全部倒入 S2 中，这样 S2 的栈顶就是队首元素。
+
+deQueue 单次操作的最坏时间复杂度为 O(n)，其中 n 为当前队列中元素的数量。其余操作的时间复杂度为 O(1)。
+
+deQueue() 的返回结果依次为 5, 8, 2，操作结束后队列中从队首到队尾的元素为 7。
