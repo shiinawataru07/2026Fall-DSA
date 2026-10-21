@@ -10,10 +10,14 @@
 - [03-Stack and Queue](#03-stack-and-queue)
     - [顺序栈](#顺序栈)
     - [链式栈](#链式栈)
+    - [卡特兰数](#卡特兰数)
     - [表达式](#表达式)
     - [Shunting yard algorightm（调度场算法）](#shunting-yard-algorightm调度场算法)
     - [队列](#队列)
     - [技巧（循环队列，单调队列）](#技巧-1)
+- [04-String](#04-string)
+    - [字符串类](#字符串类)
+    - [LPS 与 KMP 模式匹配算法](#lps-与-kmp-模式匹配算法)
 ## 01-Complexity
 ### 大 O、Ω、Θ 表示法
 若 $f(x) \leq c \cdot g(x)$，则 $f(x) = O(g(x))$，$g(x) = \Omega(f(x))$。
@@ -204,6 +208,22 @@ private:
     }
 };
 ```
+### 卡特兰数
+对于一个给定的序列，我们将其压入栈并推出栈，最终得到一个合法出栈序列。对于长度为 n 的序列，合法出栈序列的数量为第 n 个卡特兰数 $C_n$，其计算公式为：
+$$ C_n = \frac{1}{n+1} \binom{2n}{n} = \frac{(2n)!}{(n+1)!n!} $$
+证明方式如下：  
+我们假定元素 $1$ 是第 $k+1$ 个出栈的元素，那么先于 $1$ 出栈的元素有 $k$ 个，它们的出栈顺序是一个长度为 $k$ 的合法出栈序列；而后于 $1$ 出栈的元素有 $n-k-1$ 个，它们的出栈顺序是一个长度为 $n-k-1$ 的合法出栈序列。因此我们可以得到递推公式：
+$$ C_n = \sum_{k=0}^{n-1} C_k C_{n-k-1} $$
+然后生成函数：
+$$ C(x) = \sum_{n=0}^{\infty} C_n x^n $$
+根据递推公式，我们可以得到：
+$$ C(x) = 1 + xC(x)^2 $$
+再加上我们需要满足 $C(0) = 1$，我们可以解出：
+$$ C(x) = \frac{1 - \sqrt{1-4x}}{2x} $$
+我们再使用广义二项式定理展开：
+$$ (1-4x)^{\frac{1}{2}} = \sum_{n=0}^{\infty} \binom{\frac{1}{2}}{n}(-4x)^n $$
+最终再进行若干化简，我们可以得到：
+$$ C_n = \frac{1}{n+1} \binom{2n}{n} $$
 ### 表达式
 巴科斯范式（BNF）是一种用于表示上下文无关文法的形式化方法。
 - <数字> 最底层的砖块
@@ -233,3 +253,178 @@ private:
 ### 技巧
 - 循环队列：使用数组实现队列时，可以通过取模运算来实现循环队列，从而有效利用数组空间。
 - 单调队列：每次入队时，保持队列中的元素单调递增或单调递减，这样就能维护滑动窗口的最大值或最小值。
+
+
+## 04-String
+### 字符串类
+```cpp
+class String {
+public:
+    using size_type = std::size_t;
+    String() : data_(new char[1]), size_(0) {
+        data_[0] = '\0';
+    }
+    String(const char* str) {
+        if (s == nullptr) throw std::invalid_argument("Null pointer");
+        size_ = std::strlen(str);
+        data_ = new char[size_ + 1];
+        std::memcpy(data_, str, size_ + 1);
+    }
+    ~String() { delete[] data_; }
+
+    String(const String& other) : data_(new char[other.size_ + 1]), size_(other.size_) {
+        std::memcpy(data_, other.data_, size_ + 1);
+    }
+    String& operator=(const String& other) {
+        if (this == &other) return *this;
+        char* fresh = new char[other.size_ + 1];
+        std::memcpy(fresh, other.data_, other.size_ + 1);
+        delete[] data_;
+        data_ = fresh;
+        size_ = other.size_;
+        return *this;
+    }
+
+    size_type size() const { return size_; }
+    size_type length() const { return size_; }
+    bool empty() const { return size_ == 0; }
+    const char* c_str() const { return data_; }
+
+    void clear() {
+        char* fresh = new char[1];
+        fresh[0] = '\0';
+        delete[] data_;
+        data_ = fresh;
+        size_ = 0;
+    }
+
+    char at(size_type index) const {
+        if (index >= size_) throw std::out_of_range("Index out of range");
+        return data_[index];
+    }
+
+    String& append(char c) {
+        char* fresh = new char[size_ + 2];
+        std::memcpy(fresh, data_, size_);
+        fresh[size_] = c;
+        fresh[size_ + 1] = '\0';
+        delete[] data_;
+        data_ = fresh;
+        ++size_;
+        return *this;
+    }
+
+    String& concatenate(const char* s) {
+        if (s == nullptr) throw std::invalid_argument("Null pointer");
+        size_type len = std::strlen(s);
+        char* fresh = new char[size_ + len + 1];
+        std::memcpy(fresh, data_, size_);
+        std::memcpy(fresh + size_, s, len + 1);
+        delete[] data_;
+        data_ = fresh;
+        size_ += len;
+        return *this;
+    }
+
+    String substr(size_type pos, size_type len) const {
+        if (pos > size_) throw std::out_of_range("Position out of range");
+        size_type available = size_ - pos;
+        size_type take = (len < available) ? len : available;
+        String result;
+        char* fresh = new char[take + 1];
+        std::memcpy(fresh, data_ + pos, take);
+        fresh[take] = '\0';
+        delete[] result.data_;
+        result.data_ = fresh;
+        result.size_ = take;
+        return result;
+    }
+
+    std::optional<size_type> find(char c, size_type start = 0) const {
+        for (size_type i = start; i < size_; ++i) {
+            if (data_[i] == c) return i;
+        }
+        return std::nullopt;
+    }
+
+    int compare(const String& other) const {
+        return std::strcmp(data_, other.data_);
+    }
+
+private:
+    char* data_;
+    size_type size_;
+};
+
+inline bool operator==(const String& lhs, const String& rhs) {
+    return lhs.compare(rhs) == 0;
+}
+inline bool operator!=(const String& lhs, const String& rhs) {
+    return !(lhs == rhs);
+}
+inline bool operator<(const String& lhs, const String& rhs) {
+    return lhs.compare(rhs) < 0;
+}
+```
+
+### LPS 与 KMP 模式匹配算法
+模式匹配是指我们有一个长字符串 $s$ 和一个模式字符串 $p$，我们希望在 $s$ 中找到与 $p$ 匹配的子串的位置。
+
+朴素算法就是从 $s$ 的每一个位置开始，尝试匹配 $p$，如果匹配失败，就移动到下一个位置继续尝试。这种方法的时间复杂度是 $O(nm)$，其中 $n$ 是字符串 $s$ 的长度，$m$ 是模式字符串 $p$ 的长度。
+
+我们可以通过 KMP 算法来优化这个过程。KMP 算法的核心思想是利用已经匹配的信息，避免重复比较。我们对模式串进行预处理，得到其 $next$ 数组（也称为失配函数），这个数组告诉我们当匹配失败时，模式串应该移动到哪个位置继续匹配。
+
+可以看出 $next$ 数组的第 $i$ 位就是 str[0: i] 的最长相等真前后缀长度（longest proper prefix which is also suffix）。例如，字符串 "ABCDABD" 的 $next$ 数组为 [-1, 0, 0, 0, 1, 2, 0]。
+
+$next$ 数组也可以经过优化，来处理那些在匹配失败时，模式串中有重复字符的情况。优化后的 $next$ 数组可以减少不必要的比较，从而提高匹配效率。
+
+```python
+def build_next(pattern: str) -> list[int]:
+    if not pattern:
+        return []
+    next_values = [-1] * len(pattern)
+    i = 0
+    k = -1
+    while i < len(pattern):
+        while k >= 0 and pattern[i] != pattern[k]:
+            k = next_values[k]
+        i += 1
+        k += 1
+        if i == len(pattern):
+            break
+        next_values[i] = next_values[k] if pattern[i] == pattern[k] else k
+    return next_values
+```
+
+KMP 的匹配过程如下，相当于朴素的配对算法，但是失配时，模式串不需要回溯，而是根据 $next$ 数组直接跳到下一个可能匹配的位置。
+
+```python
+def kmp_search(text: str, pattern: str, next_values: list[int] | None = None) -> int | None:
+    if not pattern:
+        return 0
+    if next_values is None:
+        next_values = build_next(pattern)
+    if len(next_values) != len(pattern):
+        raise ValueError("kmp_search: next 数组长度与模式不符")
+    i = 0
+    j = 0
+    while i < len(pattern) and j < len(text):
+        if i == -1 or text[j] == pattern[i]:
+            i += 1
+            j += 1
+        else:
+            i = next_values[i]
+    return j - len(pattern) if i == len(pattern) else None
+```
+
+注意到目标串的下标只增不减，故而时间复杂度为 $O(|P|+|T|)$，其中 $|P|$ 是模式串的长度，$|T|$ 是目标串的长度。
+
+我们还可以利用前缀函数求得字符串的周期：
+
+对于字符串 $s$ 和 $0\leq k < |s|$，如果 $s[i] = s[i+k]$ 对于所有 $0 \leq i < |s|-k$ 都成立，则称 $s$ 有周期 $k$。
+
+对于 $0\leq r < |s|$，如果 $s$ 长度为 $r$ 的前缀和后缀相等，则称这个前缀为原字符串的边界。
+
+注意到 $|s| - r$ 就是字符串的周期。
+
+于是我们求出最长相等真前后缀数组 $\pi$ 后，就可以得到字符串的最小周期为 $|s| - \pi[|s|-1]$。
