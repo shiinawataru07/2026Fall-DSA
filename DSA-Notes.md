@@ -18,6 +18,13 @@
 - [04-String](#04-string)
     - [字符串类](#字符串类)
     - [LPS 与 KMP 模式匹配算法](#lps-与-kmp-模式匹配算法)
+- [05-Binary Tree](#05-binary-tree)
+    - [概念](#概念)
+    - [遍历与线索二叉树](#遍历与线索二叉树)
+    - [二叉搜索树](#二叉搜索树)
+    - [堆](#堆)
+    - [哈夫曼树](#哈夫曼树)
+- [06-Tree](#06-tree)
 ## 01-Complexity
 ### 大 O、Ω、Θ 表示法
 若 $f(x) \leq c \cdot g(x)$，则 $f(x) = O(g(x))$，$g(x) = \Omega(f(x))$。
@@ -428,3 +435,284 @@ def kmp_search(text: str, pattern: str, next_values: list[int] | None = None) ->
 注意到 $|s| - r$ 就是字符串的周期。
 
 于是我们求出最长相等真前后缀数组 $\pi$ 后，就可以得到字符串的最小周期为 $|s| - \pi[|s|-1]$。
+
+## 05-Binary Tree
+### 概念
+二叉树是由节点构成的空集，或者一个根节点和其左右子树所构成的集合组成。
+
+二叉树的唯一起始节点称之为根（root），非根节点的唯一前驱节点称为其的父节点（parent），而该节点的子节点称为其的子节点（child）。
+
+一个节点的子树数目称为该节点的度（degree），叶子节点（leaf）是指没有子节点的节点。
+
+父节点与子节点之间的连线称之为边，若二叉树中的节点序列两两成边，该路径所经过的边数称为该路径的长度。
+
+若有一条从 $k$ 到 $k_s$ 的路径，则称 $k_s$ 是 $k$ 的子孙（descendant），而 $k$ 是 $k_s$ 的祖先（ancestor）。从根节点到某个节点的路径长度称为该节点的深度（depth），而从该节点到叶子节点的最长路径长度称为该节点的高度（height）。
+
+任何节点是叶或者左右子树都非空的二叉树称为满二叉树（full binary tree），而除了最后一层外每一层都排满的二叉树称为完全二叉树（complete binary tree）。
+
+把普通二叉树的每个空子树位置都用一个空节点代替，则称之为二叉树的扩展二叉树（extended binary tree）。  
+值得注意的是，扩展二叉树的叶子节点数目总是比其非叶子节点数目多 1。  
+证明：  
+最初仅有根节点时，叶子节点数目为 1，非叶子节点数目为 0，满足条件。  
+每次原树多一个节点时，替换掉了原先扩充的一个空节点，但又会新增两个空节点，因此扩展二叉树的叶子节点数目总是比其非叶子节点数目多 1。
+
+- 性质1：第 $i$ 层最多有 $2^{i}$ 个节点。
+- 性质2：深度为 $k$ 的二叉树最多有 $2^{k}-1$ 个节点。
+- 性质3：非空二叉树有 $n_0$ 个叶子节点和 $n_2$ 个度为 2 的节点，则有 $n_0 = n_2 + 1$。
+- 性质4：非空满二叉树有 $n_1$ 个度为 1 的节点，则有 $n_1 = 0$。
+- 性质5：非空二叉树的空子树数目等于其结点数加 1。
+- 性质6：有 $n$ 个节点的完全二叉树的深度为 $\lfloor \log_2 n \rfloor$。（也就是有几层）。高度为 $\lceil \log_2 (n+1) \rceil$。
+- 性质7：完全二叉树节点编号为 $0...n-1$，$i$ 的父节点为 $\lfloor (i-1)/2 \rfloor$，左孩子为 $2i+1$，右孩子为 $2i+2$。且奇为左，偶为右。
+
+### 遍历与线索二叉树
+基于深度优先搜索（DFS）的遍历方式有三种：前序遍历（preorder）、中序遍历（inorder）和后序遍历（postorder）。  
+前序遍历为根-左-右，中序遍历为左-根-右，后序遍历为左-右-根。从 $root$ 开始递归遍历。
+```cpp
+static void preorder(TreeNode* root) {
+    if (root == nullptr) return;
+    visit(root);
+    preorder(root->left);
+    preorder(root->right);
+}
+static void inorder(TreeNode* root) {
+    if (root == nullptr) return;
+    inorder(root->left);
+    visit(root);
+    inorder(root->right);
+}
+static void postorder(TreeNode* root) {
+    if (root == nullptr) return;
+    postorder(root->left);
+    postorder(root->right);
+    visit(root);
+}
+```
+一个表达式树的前序、中序和后序遍历分别对应前缀表达式、中缀表达式和后缀表达式。
+
+给定前序和中序，或者后序和中序，可以唯一确定一棵二叉树。但给定前序和后序，不能唯一确定一棵二叉树。
+
+基于广度优先搜索的遍历是逐层遍历。  
+伪代码如下：
+```
+root 入队
+while 队列不为空 do
+    出队一个节点
+    访问节点
+    若左子节点不为空，则左子节点入队
+    若右子节点不为空，则右子节点入队
+end while
+```
+
+接下来我们讨论线索二叉树，由先前的性质 5 可知，二叉树中空子树的数目总是比其结点数多 1。我们可以利用这些空子树来存储指向前驱和后继的指针，从而实现线索化。
+
+一个节点的左指针空，就存放其中序前驱，一个节点的右指针空，就存放其中序后继。再额外使用一位 bool 来存放该指针是指向子节点还是前驱/后继的线索。
+```cpp
+struct Node {
+    T value;
+    Node* left = nullptr;
+    Node* right = nullptr;
+    bool left_thread = false;    // true：left 存的是中序前驱
+    bool right_thread = false;   // true：right 存的是中序后继
+};
+
+// 线索化：按中序走一遍，pre 是上一个访问到的结点
+static void thread_impl(Node* node, Node*& pre) {
+    if (node == nullptr) return;
+    thread_impl(node->left, pre);
+    if (node->left == nullptr) {                   // 空左指针 → 存中序前驱
+        node->left = pre;
+        node->left_thread = true;
+    }
+    if (pre != nullptr && pre->right == nullptr) { // 上一个结点的空右指针 → 存后继
+        pre->right = node;
+        pre->right_thread = true;
+    }
+    pre = node;
+    thread_impl(node->right, pre);
+}
+
+static void make_threaded(Node* root) {
+    Node* pre = nullptr;
+    thread_impl(root, pre);
+    if (pre != nullptr) pre->right_thread = true;  // 最后一个结点：后继为空
+}
+```
+
+Morris 遍历是一种不使用栈和递归的遍历方式。其核心思想是利用线索化的概念，在遍历过程中临时修改树的结构，从而实现 O(1) 的空间复杂度。
+
+普通周游要用栈，是因为进左子树之前必须记住回来的路。Morris 注意到：cur 的左子树里最后被访问的结点（中序前驱，即左子树最右下的结点），它的 right 一定是空的——让它临时指回 cur，路就存在树里了。
+```cpp
+template <typename Visitor>
+static void morris_inorder(Node* root, Visitor& visit) {
+    Node* cur = root;
+    while (cur != nullptr) {
+        if (cur->left == nullptr) {            // 没有左子树：访问，往右走
+            visit(cur->value);
+            cur = cur->right;                  // 可能是真孩子，也可能是临时线索
+            continue;
+        }
+        Node* pre = cur->left;                 // 找中序前驱：左子树最右下
+        while (pre->right != nullptr && pre->right != cur) pre = pre->right;
+        if (pre->right == nullptr) {           // 第一次到 cur：搭线索，进左子树
+            pre->right = cur;
+            cur = cur->left;
+        } else {                               // 第二次到 cur：左子树已走完
+            pre->right = nullptr;              // 拆线索，恢复原树
+            visit(cur->value);
+            cur = cur->right;
+        }
+    }
+}
+```
+### 二叉搜索树
+在应用中我们经常要维护一个需要查询、增删的集合类型数据结构，使用无序线性表实现的查询速度过慢，而使用有序线性表实现的增删速度过慢。
+
+二叉搜索树（Binary Search Tree, BST）的每个节点代表一个数据，并且满足任何一个节点，其左子树上节点的数据都小于该节点，其右子树上节点的数据都大于该节点。
+
+插入操作逐层检索即可，删除操作需要分情况讨论：在待删除的节点不存在左子树的情况下，只需要删除该节点并将右子树的根顶上即可；  
+待删除的节点存在左子树时，朴素考虑我们可以用左子树的根节点顶上，并且将右子树的根节点置于左子树的中序遍历的最后一个节点的右子树下，但这样会让 BST 变得过于瘦长而不利于保持性质。  
+改进方案也很简单，把左子树的中序遍历最后的一个节点顶替在待删除节点位置即可。
+```cpp
+bool BinarySearchTree::insert(const T& value) {
+    Node** link = &root_; // 新结点该挂在哪个指针上，初始化为指向根指针的指针
+    while(*link != nullptr){
+        if(value < (*link)->value) {
+            link = &(*link)->left;
+        }else if(value > (*link)->value) {
+            link = &(*link)->right;
+        }else{
+            return false; // 发现已经有重复值了
+        }
+    }
+    *link = new Node{value, nullptr, nullptr};
+    return true;
+}
+
+static bool BinarySearchTree::remove(Node*& link, const T& value) {
+    if (link == nullptr) return false; // 没找到
+    if (value < link->value) {
+        return remove(link->left, value);
+    } else if (value > link->value) {
+        return remove(link->right, value);
+    }
+    Node* removed = link;
+    if(removed->left == nullptr) {
+        link = removed->right;
+        delete removed;
+        return true;
+    }
+    Node** pre = &removed->left;
+    while((*pre)->right != nullptr) pre = &(*pre)->right;
+    Node* replacement = *pre;
+    *pre = replacement->left;
+    replacement->left = removed->left;
+    replacement->right = removed->right;
+    link = replacement;
+    delete removed;
+    return true;
+}
+```
+### 堆
+最小堆是一种特殊的完全二叉树，满足每个节点的值都小于或等于其子节点的值。最大堆则是每个节点的值都大于或等于其子节点的值。写成序列有如下特性：
+$$ K_i \leq K_{2i+1} \quad\text{and}\quad K_i \leq K_{2i+2} $$
+插入新元素时，将其放在数组的末尾，然后通过上浮操作（swim）将其移动到正确的位置。删除某个给定元素时，先将其与数组末尾的元素交换，然后删除末尾元素，然后判断交换后的元素与父元素的大小关系，如果小于父元素则上浮，否则下沉（sink）到正确位置。
+最小堆只适合于查找最小值，查找任意值的效率不高
+```cpp
+template <typename T>
+class MinHeap {
+public:
+    using size_type = std::size_t;
+    explicit MinHeap(size_type initial_capacity = 8)
+        : data_(new T[initial_capacity]), capacity_(initial_capacity), size_(0) {}
+    ~MinHeap() { delete[] data_; }
+    MinHeap(const MinHeap& other)
+        : data_(new T[other.capacity_]), capacity_(other.capacity_), size_(other.size_) {
+        for(size_type i = 0; i < size_; ++i) {
+            data_[i] = other.data_[i];
+        }
+    }
+    MinHeap& operator=(const MinHeap& other) {
+        if(this == &other) return *this;
+        T* fresh = new T[other.capacity_];
+        for(size_type i = 0; i < other.size_; ++i) {
+            fresh[i] = other.data_[i];
+        }
+        delete[] data_;
+        data_ = fresh;
+        capacity_ = other.capacity_;
+        size_ = other.size_;
+        return *this;
+    }
+    bool empty() const { return size_ == 0; }
+    size_type size() const { return size_; }
+    void insert(const T& value) {
+        if(size_ == capacity_) grow();
+        data_[size_] = value;
+        sift_up(size_);
+        ++size_;
+    }
+    std::optional<T> remove_min() {
+        if(empty()) return std::nullopt;
+        T min_value = data_[0];
+        --size_;
+        if(size_ > 0) {
+            data_[0] = data_[size_];
+            sift_down(0);
+        }
+        return min_value;
+    }
+private:
+    void sift_up(size_type index) {
+        while(index > 0) {
+            size_type parent = (index - 1) / 2;
+            if(!(data_[index] < data_[parent])) break;
+            T tmp = data_[index];
+            data_[index] = data_[parent];
+            data_[parent] = tmp;
+            index = parent;
+        }
+    }
+    void sift_down(size_type index) {
+        while(true) {
+            size_type left = 2 * index + 1;
+            size_type right = 2 * index + 2;
+            size_type smallest = index;
+            if(left < size_ && data_[left] < data_[smallest]) smallest = left;
+            if(right < size_ && data_[right] < data_[smallest]) smallest = right;
+            if(smallest == index) break;
+            T tmp = data_[index];
+            data_[index] = data_[smallest];
+            data_[smallest] = tmp;
+            index = smallest;
+        }
+    }
+    void grow() {
+        size_type next = (capacity_ == 0) ? 1 : capacity_ * 2;
+        T* fresh = new T[next];
+        for(size_type i = 0; i < size_; ++i) {
+            fresh[i] = data_[i];
+        }
+        delete[] data_;
+        data_ = fresh;
+        capacity_ = next;
+    }
+    T* data_;
+    size_type capacity_;
+    size_type size_;
+};
+```
+对一个无序序列建堆的方法朴素考虑可以做 $n$ 次 insert 操作，每次插入的时间复杂度为 $O(\log n)$，因此总的时间复杂度为 $O(n \log n)$。  
+我们可以用下沉方法来优化这个过程，从最后一个非叶结点起，倒着对每个结点做一次下沉操作，直到根结点为止。  
+满树的第 $i$ 层恰有 $2^i$ 个结点，其中的结点最多下沉 $h-i$ 层，因此总的时间复杂度为 $O(n)$：
+$$ cost \leq \sum_{i=0}^{h}2^i(h-i)=\sum_{j=0}^h2^{h-j}j=2^h\sum_{j=0}^h\frac{j}{2^j}\leq 2^h\times 2 \leq 2n $$
+优先队列（Priority Queue）是一种特殊的队列，其中每个元素都有一个优先级。与普通队列不同，优先队列中的元素是按照优先级顺序进行处理的，而不是按照插入顺序。最小堆和最大堆是实现优先队列的常用数据结构。
+### 哈夫曼树
+我们定义带权路径长度（Weighted Path Length, WPL）为每个叶子节点的权值与其到根节点的路径长度的乘积之和。
+
+基于此，我们提出哈夫曼树，对于给定的权值集合，我们希望构建一棵二叉树，使得其 WPL 最小。哈夫曼树是一种带权路径长度最短的二叉树。  
+构造方式就是每次从权值集合中选出两个最小的权值，构建一个新的节点，其权值为这两个最小权值的和，然后将这个新节点加入到权值集合中。重复这个过程，直到只剩下一个节点为止，这个节点就是哈夫曼树的根节点。
+
+WPL 等于所有内部节点的权值之和。
+
+Huffman 编码是一种经典的压缩算法，它通过构建哈夫曼树来实现。对于一串字符，我们可以根据其出现的频率来构建哈夫曼树，从而实现哈夫曼编码。哈夫曼编码是一种可变长度的编码方式，频率高的字符使用较短的编码，而频率低的字符使用较长的编码，从而达到压缩数据的目的。
+## 06-Tree
