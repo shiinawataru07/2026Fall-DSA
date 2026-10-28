@@ -25,6 +25,10 @@
     - [堆](#堆)
     - [哈夫曼树](#哈夫曼树)
 - [06-Tree](#06-tree)
+    - [森林与二叉树的转换](#森林与二叉树的转换)
+    - [链式存储](#链式存储)
+    - [并查集](#并查集)
+    - [顺序存储](#顺序存储)
 ## 01-Complexity
 ### 大 O、Ω、Θ 表示法
 若 $f(x) \leq c \cdot g(x)$，则 $f(x) = O(g(x))$，$g(x) = \Omega(f(x))$。
@@ -716,3 +720,161 @@ WPL 等于所有内部节点的权值之和。
 
 Huffman 编码是一种经典的压缩算法，它通过构建哈夫曼树来实现。对于一串字符，我们可以根据其出现的频率来构建哈夫曼树，从而实现哈夫曼编码。哈夫曼编码是一种可变长度的编码方式，频率高的字符使用较短的编码，而频率低的字符使用较长的编码，从而达到压缩数据的目的。
 ## 06-Tree
+### 森林与二叉树的转换
+树形结构用分支关系定义层次：一个结点至多一个前驱，但可以有任意多个后继。定义和概念可以参考二叉树。
+- 森林-二叉树：  
+同一层的结点相连，只保留父结点到第一个孩子的连线，砍掉到其余孩子的连线。转换后，一个结点的左孩子是它在原树（或森林）里的第一个孩子，右孩子是原来的下一个兄弟。左枝上是父子关系，右枝上是兄弟关系。 
+- 二叉树-森林：  
+若 $x$ 是 $y$ 的左孩子，则将 x 右边整条右链都连到 y 下。
+### 链式存储
+1. 子结点表：使用一个结点数组来存所有结点，每个结点存储值、父节点索引、指向子节点链表的指针。
+2. 静态左子右兄：使用一个节点数组存所有节点，每个节点存储值、父节点索引、指向左孩子的指针、指向右兄弟的指针。
+3. 动态表示法：参考子结点表，只是采用动态数组来代替子节点链表。
+4. 动态左子右兄：参考静态左子右兄，只是使用链表，具体实现给出代码如下：
+```cpp
+template<typename T>
+class GeneralTree {
+public:
+    struct Node {
+        T value;
+        Node* child{nullptr};
+        Node* sibling{nullptr};
+        Node* parent{nullptr};
+        explicit Node(const T& val) : value(val) {}
+    };
+    GeneralTree() = default;
+    GeneralTree(const GeneralTree& other) noexcept : root_(clone(other.root_, nullptr)) {}
+    GeneralTree& operator=(const GeneralTree& other) noexcept {
+        if(this == &other) return *this;
+        GeneralTree copy(other);
+        std::swap(root_, copy.root_);
+        return *this;
+    }
+    ~GeneralTree() { clear(); }
+    [[nodiscard]] Node* root() noexcept { return root_; }
+    [[nodiscard]] const Node* root() const noexcept { return root_; }
+    void create_root(const T& value) {
+        clear();
+        root_ = new Node(value);
+    }
+    Node* insert_first(Node* parent, const T& value) {
+        if(parent == nullptr) throw std::invalid_argument("Parent node is null");
+        Node* new_node = new Node(value);
+        new_node->parent = parent;
+        new_node->sibling = parent->child;
+        parent->child = new_node;
+        return new_node;
+    }
+    Node* insert_next(Node* sibling, const T& value) {
+        if(sibling == nullptr) throw std::invalid_argument("Sibling node is null");
+        Node* new_node = new Node(value);
+        new_node->parent = sibling->parent;
+        new_node->sibling = sibling->sibling;
+        sibling->sibling = new_node;
+        return new_node;
+    }
+    [[nodiscard]] Node* parent_of(Node* node) const noexcept { return node ? node->parent : nullptr; }
+    void delete_subtree(Node* node) {
+        if(node == nullptr) return;
+        Node** link = node->parent == nullptr ? &root_ : &node->parent->child;
+        while(*link != nullptr && *link != node) link = &(*link)->sibling;
+        if (*link != node) throw std::invalid_argument("Node is not a child of its parent");
+        *link = node->sibling;
+        node->sibling = nullptr;
+        destroy(node);
+    }
+    void clear() {
+        destroy(root_);
+        root_ = nullptr;
+    }
+    void preorder(Visitor&& visitor) const{
+        pre(root_, visitor);
+    }
+    void postorder(Visitor&& visitor) const{
+        post(root_, visitor);
+    }
+    struct DualTagNode {
+        T value;
+        bool has_child;
+        bool has_sibling;
+    };
+    [[nodiscard]] static GeneralTree from_dual_tag(const DualTagNode* nodes, std::size_t count) {
+        GeneralTree tree;
+        if(count == 0) return tree;
+        std::vector<Node*> waiting; // stack
+        Node* current = new Node(nodes[0].value);
+        tree.root_ = current;
+        for(std::size_t i = 0; i + 1 < count; ++i) {
+            if (nodes[i].has_sibling) waiting.push_back(current);
+            Node* fresh = new Node(nodes[i + 1].value);
+            if (nodes[i].has_child) {
+                current->child = fresh;
+                fresh->parent = current;
+            } else {
+                if (waiting.empty()) {
+                    delete fresh;
+                    throw std::invalid_argument("Invalid dual tag sequence: no parent for sibling");
+                }
+                Node* owner = waiting.back();
+                waiting.pop_back();
+                owner->sibling = fresh;
+                fresh->parent = owner->parent;
+            }
+            current = fresh;
+        }
+        return tree;
+    }
+private:
+    static void destroy(Node* node) noexcept {
+        if(node == nullptr) return;
+        destroy(node->child);
+        destroy(node->sibling);
+        delete node;
+    }
+    static Node* clone(const Node* node, Node* parent) {
+        if (node == nullptr) return nullptr;
+        Node* copy = new Node(node->value);
+        copy->parent = parent;
+        try {
+            copy->child = clone(node->child, copy);
+            copy->sibling = clone(node->sibling, parent);
+        } catch (...) {
+            destroy(copy);
+            throw;
+        }
+        return copy;
+    }
+    static void pre(Node* node, Visitor& visitor) {
+        for (; node != nullptr; node = node->sibling) {
+            visitor(node->value);
+            pre(node->child, visitor);
+        }
+    }
+    static void post(Node* node, Visitor& visitor) {
+        for (; node != nullptr; node = node->sibling) {
+            post(node->child, visitor);
+            visitor(node->value);
+        }
+    }
+    Node* release() noexcept {
+        Node* old_root = root_;
+        root_ = nullptr;
+        return old_root;
+    }
+    Node* root_{nullptr};
+};
+```
+### 并查集
+并查集维护若干互不相干的子集，支持两种操作：
+1. **Find**：判断两个元素是否属于同一个集合。
+2. **Union**：将两个子集合并为一个子集。
+
+用父指针表示时，把每个子集看成一棵树，森林中的每棵树代表一个子集，树根就是该集合的标识符。
+
+改进一：重量权衡合并规则，把较小的树挂到较大的树上，避免树过高。能够保证树的高度限制到 $O(\log n)$。
+
+改进二：路径压缩：find 在返回根之前，把沿途每个结点的父指针都直接改成根。
+
+**todo**
+### 顺序存储
+**todo**
