@@ -30,17 +30,23 @@
     - [并查集](#并查集)
     - [顺序存储](#顺序存储)
 ## 01-Complexity
+- 数据结构的研究包括逻辑结构、存储结构、运算。
+- ADT 由数据对象及其上的关系和定义其上的一组操作组成。
+- 数据的基本四种存储方式是顺序存储、链接存储、索引存储、散列存储。
+- 算法的性质有通用性、有穷性、有效性、确定性。
 ### 大 O、Ω、Θ 表示法
-若 $f(x) \leq c \cdot g(x)$，则 $f(x) = O(g(x))$，$g(x) = \Omega(f(x))$。
+若存在常数 $c > 0$ 和 $n_0 \geq 0$，使得对所有 $n \geq n_0$，都有 $f(n) \leq c \cdot g(n)$，则 $f(n) = O(g(n))$，$g(n) = \Omega(f(n))$。
 
-若 $f(x) = O(g(x))$ 且 $g(x) = O(f(x))$，则 $f(x) = \Theta(g(x))$。
+若 $f(n) = O(g(n))$ 且 $g(n) = O(f(n))$，则 $f(n) = \Theta(g(n))$。
 ### 主定理
-如若：
 $$ T(n) = aT\left(\frac{n}{b}\right) + f(n) $$
 分为三种情况：
 1. 若 $f(n) = O(n^{\log_b a - \epsilon})$，则 $T(n) = \Theta(n^{\log_b a})$。
 2. 若 $f(n) = \Theta(n^{\log_b a} \cdot \log^k n)$，则 $T(n) = \Theta(n^{\log_b a} \log^{k+1} n)$。
 3. 若 $f(n) = \Omega(n^{\log_b a + \epsilon})$ 且 $af(n/b) \leq cf(n)$，则 $T(n) = \Theta(f(n))$。
+
+补充：斯特林公式：
+$$n!\approx \sqrt{2\pi n}\left(\frac{n}{e}\right)^n$$
 ## 02-Linear List
 ### 顺序表
 ```cpp
@@ -57,41 +63,31 @@ private:
 };
 ```
 ### 链表
-```cpp
-template <typename T>
-class LinkedList {
-private:
-    struct Node {
-        T value;
-        Node* next;
-    };
-    Node* head_;
-    Node* tail_;
-    size_type size_;
-public:
-    LinkedList() : head_(new Node), tail_(head_), size_(0) {
-        head_->next = nullptr;
-    }
-    ~LinkedList() {
-        Node* current = head_;
-        while (current) {
-            Node* next = current->next;
-            delete current;
-            current = next;
-        }
-    }
-};
 ```
-可以为 Node 添加一个 prev 指针来实现双向链表。
+结点 Node
+    data 元素值
+    next 指向下一个结点的指针
+
+链表 List
+    Head() 头结点指针
+    Empty() 判空
+    MakeNode(x) 创建结点
+    FreeNode(p) 释放结点
+```
+可以为 Node 添加一个 prev 指针来实现双链表。
 
 优点在于，删除已知节点的时间复杂度变为 O(1)，而不需要 O(n) 的时间来查找前驱节点。
 ### 技巧
+- 删除顺序表中所有等于 k 的元素：双指针法，i 指向当前处理位置，j 指向下一个要写入的位置，进行覆盖写入。
 - 判断两链表相交：双指针换头
 - 反转链表：三指针迭代
-- 合并有序列表：使用虚拟头节点 dummy
+- 合并有序列表：使用同一个虚拟头节点 dummy 然后进行遍历
+- 查找倒数第 k 个节点：双指针法，其中一个指针先走 k 步
 - 判断链表是否回文：快慢指针找到中点，反转后半链表
-- 判断链表是否有环：快慢指针
+- 判断链表是否有环：快慢指针看是否相遇
+- 单链表删除节点：可以将要删除的节点的值替换为下一个节点的值，然后删除下一个节点
 ## 03-Stack and Queue
+递归调用时，系统栈帧保存返回地址、实在参数、本层的局部变量。
 ### 顺序栈
 ```cpp
 template <typename T>
@@ -258,12 +254,23 @@ $$ C_n = \frac{1}{n+1} \binom{2n}{n} $$
 
 最终，将运算符栈中剩余的运算符依次弹出，压入后缀表达式。
 ### 队列
-队列是一种先进先出（FIFO）的数据结构。基本操作包括：
-- 入队（enqueue）：将元素添加到队列的末尾。
-- 出队（dequeue）：移除并返回队列的第一个元素。
+队列是一种先进先出（FIFO）的数据结构。
+```
+ADT Queue
+    Enqueue(x) 入队
+    Dequeue() 出队
+    Front() 队头元素
+    Empty() 判空
+```
+
+用数组实现队列时可以使用循环队列的实现方式。
+用 front 和 rear 两个指针来表示队列的头和尾，入队时将元素放在 rear 指针所指的位置，并将 rear 指针向后移动一位；
+出队时将 front 指针所指的元素移除，并将 front 指针向后移动一位。
+为了避免数组越界，可以使用取模运算来实现循环。
+
+注意到当 front == rear 时，队列为空；当 (rear + 1) % capacity == front 时，队列为满。（实际只存储了 capacity - 1 个元素）
 ### 技巧
-- 循环队列：使用数组实现队列时，可以通过取模运算来实现循环队列，从而有效利用数组空间。
-- 单调队列：每次入队时，保持队列中的元素单调递增或单调递减，这样就能维护滑动窗口的最大值或最小值。
+单调队列：每次入队时，保持队列中的元素单调递增或单调递减，这样就能维护滑动窗口的最大值或最小值。
 
 
 ## 04-String
