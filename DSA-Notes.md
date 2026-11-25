@@ -882,6 +882,21 @@ private:
 
 改进二：路径压缩：find 在返回根之前，把沿途每个结点的父指针都直接改成根。
 
+```cpp
+int find(int x) {
+    if (parent[x] != x) parent[x] = find(parent[x]); // 路径压缩
+    return parent[x];
+}
+void dsu_union(int a, int b) {
+    int root_a = find(a);
+    int root_b = find(b);
+    if (root_a == root_b) return; // 已经在同一个集合中
+    if (size[root_a] < size[root_b]) std::swap(root_a, root_b); // 按大小合并
+    parent[root_b] = root_a;
+    size[root_a] += size[root_b];
+}
+```
+
 **todo**
 ### 顺序存储
 **todo**
